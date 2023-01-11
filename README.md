@@ -9,7 +9,7 @@ This serves as an alternative for @nuxtjs-alt/proxy. Please note that this is fo
 1. Add `@nuxt-alt/proxy` dependency to your project
 
 ```bash
-yarn add @nuxt-alt/http
+yarn add @nuxt-alt/proxy
 ```
 
 2. Add `@nuxt-alt/proxy` to the `modules` section of `nuxt.config.ts`
