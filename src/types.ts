@@ -38,12 +38,6 @@ declare module '@nuxt/schema' {
     interface NuxtOptions {
         proxy?: ModuleOptions
     }
-    interface RuntimeConfig {
-        proxy?: ModuleOptions;
-    }
-    interface PublicRuntimeConfig {
-        proxy?: ModuleOptions
-    }
 }
 
 declare const NuxtProxy: NuxtSchema.NuxtModule<ModuleOptions>

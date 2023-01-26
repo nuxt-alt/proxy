@@ -1,4 +1,4 @@
-import { addServerHandler, addTemplate, addPluginTemplate, createResolver, defineNuxtModule } from '@nuxt/kit'
+import { addServerHandler, addTemplate, createResolver, defineNuxtModule } from '@nuxt/kit'
 import { name, version } from '../package.json'
 import { ModuleOptions, ProxyOptions } from './types'
 import { defu } from 'defu'
@@ -9,10 +9,7 @@ export default defineNuxtModule({
     meta: {
         name,
         version,
-        configKey: CONFIG_KEY,
-        compatibility: {
-            nuxt: '^3.0.0'
-        }
+        configKey: CONFIG_KEY
     },
     defaults: {
         enableProxy: true,
@@ -21,8 +18,9 @@ export default defineNuxtModule({
     setup(options, nuxt) {
         const config = (nuxt.options.runtimeConfig.proxy = defu(nuxt.options.runtimeConfig.proxy, options)) as ModuleOptions
         const resolver = createResolver(import.meta.url)
-        const defaultHost = process.env.NITRO_HOST || process.env.HOST || 'localhost'
-        const defaultPort = process.env.NITRO_PORT || process.env.PORT || 3000
+        const defaultHost = process.env.NUXT_HOST || process.env.NITRO_HOST || process.env.HOST || 'localhost'
+        const defaultPort = process.env.NUXT_PORT || process.env.NITRO_PORT || process.env.PORT || 3000
+        const defaultProtocol = process.env.NITRO_SSL_CERT && process.env.NITRO_SSL_KEY ? 'https://' : 'http://'
 
         if (config.enableProxy) {
             // Create Proxy
@@ -38,22 +36,11 @@ export default defineNuxtModule({
             })
         }
 
-        if (config.fetch) {
-            // Create Interceptor
-            addPluginTemplate({
-                src: resolver.resolve('runtime/fetch.interceptor.mjs'), 
-                filename: 'fetch.interceptor.mjs',
-                options: config
-            })
-
-            nuxt.options.build.transpile.push(resolver.resolve('runtime'))
-        }
-
         // Don't know if it runs on windows still.
         if (config.fetch) {
             // create nitro plugin
             addTemplate({
-                getContents: () => nitroFetchProxy(defaultHost, defaultPort),
+                getContents: () => nitroFetchProxy(defaultHost, defaultPort, defaultProtocol),
                 filename: 'nitro-fetch.mjs',
                 write: true
             })
@@ -66,13 +53,13 @@ export default defineNuxtModule({
     }
 })
 
-function nitroFetchProxy(host: string, port: number | string): string {
+function nitroFetchProxy(host: string, port: number | string, protocol: string): string {
 return `import { createFetch, Headers } from 'ofetch'
 
 export default function (nitroApp) {
     // the proxy module needs the host and port of the nitro server in order for it to proxy it properly.
     // By default only a path is being submitted so this will chnage it to the host and port
-    globalThis.$fetch = createFetch({ fetch: nitroApp.localFetch, Headers, defaults: { baseURL: 'http://${host}:${port}' } })
+    globalThis.$fetch = createFetch({ fetch: nitroApp.localFetch, Headers, defaults: { baseURL: '${protocol}${host}:${port}' } })
 }
 `
 }
