@@ -1,4 +1,4 @@
-import { addServerHandler, addTemplate, createResolver, defineNuxtModule } from '@nuxt/kit'
+import { addServerHandler, addServerPlugin, addTemplate, createResolver, defineNuxtModule } from '@nuxt/kit'
 import { name, version } from '../package.json'
 import { ModuleOptions, ProxyOptions } from './types'
 import { defu } from 'defu'
@@ -32,7 +32,7 @@ export default defineNuxtModule({
 
             addServerHandler({
                 handler: resolver.resolve(nuxt.options.buildDir, 'nuxt-proxy.ts'), 
-                middleware: true 
+                middleware: true
             })
         }
 
@@ -45,10 +45,7 @@ export default defineNuxtModule({
                 write: true
             })
 
-            nuxt.hook('nitro:config', (nitro) => {
-                nitro.plugins = nitro.plugins || []
-                nitro.plugins.push(resolver.resolve(nuxt.options.buildDir, 'nitro-fetch.mjs'))
-            })
+            addServerPlugin(resolver.resolve(nuxt.options.buildDir, 'nitro-fetch.mjs'))
         }
     }
 })
