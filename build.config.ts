@@ -13,7 +13,8 @@ export default defineBuildConfig({
     stub: args.stub,
     entries: [
         'src/module',
-        'src/types',
+        // @ts-ignore
+        { input: 'src/types/', outDir: 'dist/types', ext: 'd.ts' },
         { input: 'src/runtime/', outDir: 'dist/runtime', ext: 'mjs' },
     ],
     rollup: {
@@ -29,14 +30,10 @@ export default defineBuildConfig({
         'nuxt-edge',
         'nuxt3',
         'vue',
-        'vue-demi'
+        'vue-demi',
+        'h3'
     ],
     hooks: {
-        async 'rollup:dts:build'(ctx) {
-            // Types file
-            const typesFile = resolve(ctx.options.outDir, 'types.mjs')
-            await fsp.unlink(typesFile)
-        },
         async 'rollup:done' (ctx) {
             // Generate CommonJS stup
             await writeCJSStub(ctx.options.outDir)

@@ -26,10 +26,6 @@ export default defineNuxtConfig({
 
 ```
 
-## Changes
-
-New options have been added to the proxy module. The proxies now need to be moved into a `proxies` property (example provided below). A `fetch` property has been added so that proxying applies to the native `$fetch` in nitro and via client side. An `enableProxy` property has been added if you would like to disable the `http-proxy` nitro plugin on the server side.
-
 ## Options
 
 ### `enableProxy`
@@ -82,14 +78,58 @@ export default defineNuxtConfig({
                 target: 'ws://localhost:5173',
                 ws: true
             }
+        },
+        experimental: {
+            fetch: false,
+            importFunctions: false
         }
     }
 })
 ```
 
-### `fetch` (experimental)
+### `experimental.fetch` (experimental)
 
 - Type: `Boolean`
 - Default: `false`
 
 This will attempt tto override ohmyfetch so that it may work with the proxy module. It may or may not work.
+
+### `experimental.importFunctions` (experimental)
+
+- Type: `Boolean`
+- Default: `false`
+
+When enabled, proxy functions can be used as a way to overcome the issue where you can't use variables in the function due to json serializatrion issues.
+
+Example:
+
+```ts
+import { defineNuxtConfig } from 'nuxt/config'
+
+export default defineNuxtConfig({
+    modules: [
+        '@nuxt-alt/proxy',
+    ],
+    proxy: {
+        proxies: {
+            // Using the proxy instance
+            '/api': {
+                target: 'http://jsonplaceholder.typicode.com',
+                changeOrigin: true,
+                rewrite: 'exampleFunction'
+            },
+        },
+        experimental: {
+            importFunctions: true
+        }
+    }
+})
+```
+
+and in the file `proxy/rewrite.ts`:
+
+```ts
+export default {
+    exampleFunction: (path) => path.replace(/^\/api/, '')
+}
+```
