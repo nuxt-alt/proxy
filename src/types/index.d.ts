@@ -1,16 +1,26 @@
 import type { ProxyServer, Server } from '@refactorjs/http-proxy'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import * as NuxtSchema from '@nuxt/schema';
+import * as NuxtSchema from '@nuxt/schema'
 import type { H3Event } from 'h3'
 
 export interface ModuleOptions {
     enableProxy?: boolean
+    buildDir: NuxtSchema.NuxtOptions['buildDir']
     proxies?: {
         [key: string]: string | ProxyOptions
     }
     experimental: {
         fetch?: boolean
         importFunctions?: boolean
+    }
+}
+
+declare module '@nuxt/schema' {
+    interface NuxtConfig {
+        ['proxy']?: Partial<ModuleOptions>
+    }
+    interface NuxtOptions {
+        ['proxy']?: ModuleOptions
     }
 }
 

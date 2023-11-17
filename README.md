@@ -2,7 +2,7 @@
 
 ## Info
 
-This serves as an alternative for @nuxtjs-alt/proxy. Please note that this is for Nuxt 3 only. This module creates a file in your `buildDir` called `nuxt-proxy.ts` which will handle all of the proxying you set within your nuxt config. The config is similar to what vite has except that this one creates a physical file which is needed for production.
+This serves as an alternative for @nuxtjs-alt/proxy. Please note that this is for nuxt 3 only. The config is similar to what vite has except that this one creates a physical file which is needed for production.
 
 ## Setup
 
@@ -80,19 +80,11 @@ export default defineNuxtConfig({
             }
         },
         experimental: {
-            fetch: false,
             importFunctions: false
         }
     }
 })
 ```
-
-### `experimental.fetch` (experimental)
-
-- Type: `Boolean`
-- Default: `false`
-
-This will attempt tto override ohmyfetch so that it may work with the proxy module. It may or may not work.
 
 ### `experimental.importFunctions` (experimental)
 
@@ -126,7 +118,7 @@ export default defineNuxtConfig({
 })
 ```
 
-and in the file `proxy/rewrite.ts`:
+and in the file inside the srcDir: `proxy/rewrite.ts`:
 
 ```ts
 export default {
