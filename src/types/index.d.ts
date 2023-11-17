@@ -5,12 +5,12 @@ import type { H3Event } from 'h3'
 
 export interface ModuleOptions {
     enableProxy?: boolean
-    buildDir: NuxtSchema.NuxtOptions['buildDir']
+    buildDir?: NuxtSchema.NuxtOptions['buildDir']
+    debug?: boolean
     proxies?: {
         [key: string]: string | ProxyOptions
     }
     experimental: {
-        fetch?: boolean
         importFunctions?: boolean
     }
 }

@@ -113,14 +113,14 @@ export default defineEventHandler(async (event) => {
                     const bypassResult = opts.bypass(event.node.req, event.node.res, opts)
                     if (typeof bypassResult === 'string') {
                         event.node.req.url = bypassResult
-                        console.debug('bypass: ' + event.node.req.url + ' -> ' + bypassResult)
+                        debug('bypass: ' + event.node.req.url + ' -> ' + bypassResult)
                         return next()
                     } else if (isObject(bypassResult)) {
                         Object.assign(options, bypassResult)
-                        console.debug('bypass: ' + event.node.req.url + ' use modified options: %O', options)
+                        debug('bypass: ' + event.node.req.url + ' use modified options: %O', options)
                         return next()
                     } else if (bypassResult === false) {
-                        console.debug('bypass: ' + event.node.req.url + ' -> 404')
+                        debug('bypass: ' + event.node.req.url + ' -> 404')
                         return event.node.res.end(404)
                     }
                 }
@@ -129,15 +129,21 @@ export default defineEventHandler(async (event) => {
                     event.node.req.url = opts.rewrite(event.node.req.url!) as string
                 }
 
-                console.debug(event.node.req.url + ' -> ' + opts.target || opts.forward)
+                debug(event.node.req.url + ' -> ' + opts.target || opts.forward)
 
                 proxy.web(event.node.req, event.node.res, options)
-                return
+                return;
             }
         }
         next()
     })
 })
+
+function debug (message?: any, ...optionalParams: any[]) {
+    if (options.debug) {
+        console.log(message, optionalParams)
+    }
+}
 
 async function getFunction(opts: ProxyOptions, functionName: string) {
     if (opts[functionName as keyof ProxyOptions]) {

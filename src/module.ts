@@ -1,4 +1,4 @@
-import { addServerHandler, addServerPlugin, addTemplate, createResolver, defineNuxtModule } from '@nuxt/kit'
+import { addServerHandler, addTemplate, createResolver, defineNuxtModule } from '@nuxt/kit'
 import { name, version } from '../package.json'
 import { ModuleOptions } from './types'
 import { defu } from 'defu'
@@ -19,6 +19,7 @@ export default defineNuxtModule({
     defaults: ({ options }) => ({
         enableProxy: true,
         buildDir: options.buildDir,
+        debug: options.dev ? true : false,
         experimental: {
             importFunctions: false
         }
