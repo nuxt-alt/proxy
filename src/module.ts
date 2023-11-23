@@ -1,9 +1,7 @@
 import { addServerHandler, addTemplate, createResolver, defineNuxtModule } from '@nuxt/kit'
 import { name, version } from '../package.json'
-import { ModuleOptions } from './types'
+import type { ModuleOptions, ProxyOptions } from './types'
 import { defu } from 'defu'
-import { existsSync, promises as fsp } from 'node:fs'
-import { Nuxt } from '@nuxt/schema'
 
 const CONFIG_KEY = 'proxy'
 
@@ -17,12 +15,8 @@ export default defineNuxtModule({
         }
     },
     defaults: ({ options }) => ({
-        enableProxy: true,
         buildDir: options.buildDir,
-        debug: options.dev ? true : false,
-        experimental: {
-            importFunctions: false
-        }
+        debug: options.dev ? true : false
     }),
     async setup(options, nuxt) {
         const resolver = createResolver(import.meta.url)
@@ -37,47 +31,67 @@ export default defineNuxtModule({
             config.externals.inline.push(runtimeDir)
 
             config.virtual = config.virtual || {}
-            config.virtual['#nuxt-proxy-options'] = `export const options = ${JSON.stringify(moduleConfig, null, 2)}`
+            config.virtual['#nuxt-proxy-options'] = `export const options = ${JSON.stringify(moduleConfig, converter, 2)}`
         })
 
-        if (moduleConfig.enableProxy) {
-            if (moduleConfig.experimental.importFunctions) {
-                await createProxyFunctions(nuxt)
-                addTemplate({ filename: 'rewrite.ts', write: true, src: resolver.resolve(nuxt.options.srcDir, 'proxy/rewrite.ts') })
-                addTemplate({ filename: 'configure.ts', write: true, src: resolver.resolve(nuxt.options.srcDir, 'proxy/configure.ts') })
-                addTemplate({ filename: 'configure-event.ts', write: true, src: resolver.resolve(nuxt.options.srcDir, 'proxy/configure-event.ts') })
-                addTemplate({ filename: 'bypass.ts', write: true, src: resolver.resolve(nuxt.options.srcDir, 'proxy/bypass.ts') })
-            }
+        await createProxyFunctions(moduleConfig)
 
-            addServerHandler({
-                handler: resolver.resolve(runtimeDir, 'proxy-plugin.nitro'),
-                middleware: true
-            })
-        }
+        addServerHandler({
+            handler: resolver.resolve(runtimeDir, 'proxy-plugin.nitro'),
+            middleware: true
+        })
     }
 })
 
-async function createProxyFunctions(nuxt: Nuxt) {
-    const resolver = createResolver(import.meta.url)
-    const proxyPath = resolver.resolve(nuxt.options.srcDir, 'proxy')
-
-    if (!existsSync(proxyPath)) {
-        await fsp.mkdir(proxyPath, { recursive: true })
+function converter(key: string, val: any) {
+    if (val && val.constructor === RegExp) {
+        return String(val)
     }
 
-    if (!existsSync(proxyPath + '/rewrite.ts')) {
-        fsp.writeFile(proxyPath + '/rewrite.ts', 'export default {}')
+    if (typeof val === 'function') {
+        return true
     }
 
-    if (!existsSync(proxyPath + '/configure.ts')) {
-        fsp.writeFile(proxyPath + '/configure.ts', 'export default {}')
-    }
+    return val
+}
 
-    if (!existsSync(proxyPath + '/configure-event.ts')) {
-        fsp.writeFile(proxyPath + '/configure-event.ts', 'export default {}')
-    }
+async function createProxyFunctions(options: ModuleOptions) {
+    addTemplate({
+        filename: 'nuxt-proxy-functions.mjs',
+        write: true,
+        getContents: () => {
+            let idx = 0;
+            let contents = 'export default {';
 
-    if (!existsSync(proxyPath + '/bypass.ts')) {
-        fsp.writeFile(proxyPath + '/bypass.ts', 'export default {}')
-    }
+            for (let key in options.proxies) {
+                let option = options.proxies[key];
+
+                // Check if option is an object
+                if (typeof option === 'object') {
+                    let tempContents = '';
+                    let hasFunction = false;
+
+                    // Loop through the properties in the option object
+                    for (let prop in option) {
+                        // Check if the property is a function
+                        if (typeof option[prop as keyof ProxyOptions] === 'function') {
+                            // Append the function to tempContents
+                            tempContents += `\n ${prop}: ${option[prop as keyof ProxyOptions]},`;
+                            hasFunction = true;
+                        }
+                    }
+
+                    // Only if the option had at least one function, increment the index and append to contents
+                    if (hasFunction) {
+                        contents += '\n' + idx + ': {' + tempContents + '\n },';
+                        idx++;
+                    }
+                }
+            }
+
+            contents += '\n}';
+
+            return contents;
+        }
+    })
 }

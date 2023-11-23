@@ -1,6 +1,6 @@
 {
     "name": "@nuxt-alt/proxy",
-    "version": "2.4.1",
+    "version": "2.4.3",
     "description": "An alternative module to @nuxtjs/proxy",
     "homepage": "https://github.com/nuxt-alt/proxy",
     "author": "Teranode",
@@ -20,8 +20,8 @@
     "scripts": {
         "dev": "nuxi dev playground",
         "dev:build": "nuxi build playground",
-        "dev:prepare": "unbuild --stub && nuxi prepare playground",
-        "prepack": "unbuild"
+        "dev:prepare": "JITI_ESM_RESOLVE=1 jiti ./commands/cli.ts build --stub && JITI_ESM_RESOLVE=1 jiti ./commands/cli.ts prepare",
+        "prepack": "JITI_ESM_RESOLVE=1 jiti ./commands/cli.ts build"
     },
     "files": [
         "dist"
@@ -29,11 +29,14 @@
     "dependencies": {
         "@nuxt/kit": "^3.8.1",
         "@refactorjs/http-proxy": "latest",
-        "defu": "^6.1.3"
+        "defu": "^6.1.3",
+        "picocolors": "^1.0.0"
     },
     "devDependencies": {
         "@types/node": "^18",
-        "nuxt": "^3.8.1",
+        "@types/ws": "^8.5.10",
+        "jiti": "^1.21.0",
+        "nuxt": "^3.8.2",
         "typescript": "^5.2.2",
         "unbuild": "^2.0.0"
     },
@@ -48,5 +51,5 @@
     "publishConfig": {
         "access": "public"
     },
-    "packageManager": "yarn@3.3.1"
+    "packageManager": "yarn@4.0.2"
 }

@@ -28,13 +28,6 @@ export default defineNuxtConfig({
 
 ## Options
 
-### `enableProxy`
-
-- Type: `Boolean`
-- Default: `true`
-
-Enable/disable server side proxying via nitro.
-
 ### `proxies`
 
 - Type: `Object`
@@ -78,50 +71,7 @@ export default defineNuxtConfig({
                 target: 'ws://localhost:5173',
                 ws: true
             }
-        },
-        experimental: {
-            importFunctions: false
         }
     }
 })
-```
-
-### `experimental.importFunctions` (experimental)
-
-- Type: `Boolean`
-- Default: `false`
-
-When enabled, proxy functions can be used as a way to overcome the issue where you can't use variables in the function due to json serializatrion issues.
-
-Example:
-
-```ts
-import { defineNuxtConfig } from 'nuxt/config'
-
-export default defineNuxtConfig({
-    modules: [
-        '@nuxt-alt/proxy',
-    ],
-    proxy: {
-        proxies: {
-            // Using the proxy instance
-            '/api': {
-                target: 'http://jsonplaceholder.typicode.com',
-                changeOrigin: true,
-                rewrite: 'exampleFunction'
-            },
-        },
-        experimental: {
-            importFunctions: true
-        }
-    }
-})
-```
-
-and in the file inside the srcDir: `proxy/rewrite.ts`:
-
-```ts
-export default {
-    exampleFunction: (path) => path.replace(/^\/api/, '')
-}
 ```

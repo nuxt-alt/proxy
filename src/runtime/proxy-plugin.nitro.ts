@@ -3,6 +3,7 @@ import * as net from 'node:net'
 import { createProxyServer, type ProxyServer, type Server } from '@refactorjs/http-proxy'
 import { defineEventHandler, type H3Event } from 'h3'
 import { options } from '#nuxt-proxy-options'
+import colors from 'picocolors'
 
 interface ProxyOptions extends Server.ServerOptions {
     /**
@@ -16,7 +17,7 @@ interface ProxyOptions extends Server.ServerOptions {
      * configure the proxy server (e.g. listen to events)
      */
     configure?: ((
-        proxy: ProxyServer, 
+        proxy: ProxyServer,
         options: ProxyOptions
     ) => void | null | undefined | false) | false
 
@@ -24,8 +25,8 @@ interface ProxyOptions extends Server.ServerOptions {
      * configure the proxy server (e.g. listen to events)
      */
     configureWithEvent?: ((
-        proxy: ProxyServer, 
-        options: ProxyOptions, 
+        proxy: ProxyServer,
+        options: ProxyOptions,
         event: H3Event
     ) => void | null | undefined | false) | false
 
@@ -48,41 +49,49 @@ Object.keys(options.proxies!).forEach(async (context) => {
 
     if (!opts) return
 
-    if (options.experimental.importFunctions) {
-        functionNames.forEach(async name => await getFunction(opts, name));
-    }  
-    else {
-        functionNames.forEach(name => opts[name as keyof ProxyOptions] = opts[name as keyof ProxyOptions] ? new Function("return (" + opts[name as keyof ProxyOptions] + ")")() : undefined);
-    }
+    await Promise.all(functionNames.map(async (name, index) => getFunction(opts, name, index)));
 
     const proxy = createProxyServer(opts)
-
-    proxy.on('error', (err, req, originalRes) => {
-        // When it is ws proxy, res is net.Socket
-        const res = originalRes as http.ServerResponse | net.Socket
-        if ('req' in res) {
-            console.error('http proxy error:' + err.stack, {
-                timestamp: true,
-                error: err
-            })
-            if (!res.headersSent && !res.writableEnded) {
-                res.writeHead(500, {
-                    'Content-Type': 'text/plain'
-                })
-                .end()
-            }
-        } else {
-            console.error('ws proxy error:' + err.stack, {
-                timestamp: true,
-                error: err
-            })
-            res.end()
-        }
-    })
 
     if (opts.configure) {
         opts.configure(proxy, opts)
     }
+
+    proxy.on('error', (err, req, originalRes) => {
+        // When it is ws proxy, res is net.Socket
+        // originalRes can be falsy if the proxy itself errored
+        const res = originalRes as http.ServerResponse | net.Socket | undefined
+
+        if (!res) {
+            console.error(`${colors.red(`http proxy error: ${err.message}`)}\n${err.stack}`)
+        } else if ('req' in res) {
+            console.error(`${colors.red(`http proxy error at ${originalRes.req.url}:`)}\n${err.stack}`)
+            if (!res.headersSent && !res.writableEnded) {
+                res.writeHead(500, {
+                    'Content-Type': 'text/plain',
+                })
+                    .end()
+            }
+        } else {
+            console.error(`${colors.red(`ws proxy error:`)}\n${err.stack}`)
+            res.end()
+        }
+    })
+
+    proxy.on('proxyReqWs', (proxyReq, req, options, socket, head) => {
+        socket.on('error', (err) => {
+            console.error(`${colors.red(`ws proxy socket error:`)}\n${err.stack}`)
+        })
+    })
+
+    proxy.on('proxyRes', (proxyRes, req, res) => {
+        res.on('close', () => {
+            if (!res.writableEnded) {
+                debug('destroying proxyRes in proxyRes close event')
+                proxyRes.destroy()
+            }
+        })
+    })
 
     // clone before saving because http-proxy mutates the options
     proxies[context] = [proxy, { ...opts }]
@@ -115,13 +124,10 @@ export default defineEventHandler(async (event) => {
                         event.node.req.url = bypassResult
                         debug('bypass: ' + event.node.req.url + ' -> ' + bypassResult)
                         return next()
-                    } else if (isObject(bypassResult)) {
-                        Object.assign(options, bypassResult)
-                        debug('bypass: ' + event.node.req.url + ' use modified options: %O', options)
-                        return next()
                     } else if (bypassResult === false) {
                         debug('bypass: ' + event.node.req.url + ' -> 404')
-                        return event.node.res.end(404)
+                        event.node.res.statusCode = 404
+                        return event.node.res.end()
                     }
                 }
 
@@ -139,17 +145,19 @@ export default defineEventHandler(async (event) => {
     })
 })
 
-function debug (message?: any, ...optionalParams: any[]) {
+function debug(message?: any) {
     if (options.debug) {
-        console.log(message, optionalParams)
+        console.log(message)
     }
 }
 
-async function getFunction(opts: ProxyOptions, functionName: string) {
+async function getFunction(opts: ProxyOptions, functionName: string, index) {
     if (opts[functionName as keyof ProxyOptions]) {
-        const functionModule = await import(`${options.buildDir}/${functionName}`)
-        opts[functionName as keyof ProxyOptions] = functionModule.default[opts[functionName as keyof ProxyOptions]]
+        const functionModule = await import(`${options.buildDir}/nuxt-proxy-functions.mjs`)
+        opts[functionName as keyof ProxyOptions] = functionModule.default[index][functionName]
     }
+
+    return opts
 }
 
 function initializeOpts(optsInput: ProxyOptions | string) {
@@ -159,12 +167,8 @@ function initializeOpts(optsInput: ProxyOptions | string) {
     return opts;
 }
 
-function isObject(value: unknown): value is Record<string, any> {
-    return Object.prototype.toString.call(value) === '[object Object]'
-}
-
 function doesProxyContextMatchUrl(context: string, url: string): boolean {
     return (
-        (context.startsWith('^') && new RegExp(context).test(url)) || url.startsWith(context)
+        (context[0] === '^' && new RegExp(context).test(url)) || url.startsWith(context)
     )
 }
