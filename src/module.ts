@@ -16,6 +16,7 @@ export default defineNuxtModule({
     },
     defaults: ({ options }) => ({
         buildDir: options.buildDir,
+        isDev: options.dev,
         debug: options.dev ? true : false
     }),
     async setup(options, nuxt) {

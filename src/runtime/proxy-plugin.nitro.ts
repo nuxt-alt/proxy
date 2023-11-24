@@ -3,6 +3,7 @@ import * as net from 'node:net'
 import { createProxyServer, type ProxyServer, type Server } from '@refactorjs/http-proxy'
 import { defineEventHandler, type H3Event } from 'h3'
 import { options } from '#nuxt-proxy-options'
+import { pathToFileURL } from 'node:url'
 import colors from 'picocolors'
 
 interface ProxyOptions extends Server.ServerOptions {
@@ -151,9 +152,10 @@ function debug(message?: any) {
     }
 }
 
-async function getFunction(opts: ProxyOptions, functionName: string, index) {
+async function getFunction(opts: ProxyOptions, functionName: string, index: number) {
     if (opts[functionName as keyof ProxyOptions]) {
-        const functionModule = await import(`${options.buildDir}/nuxt-proxy-functions.mjs`)
+        const filePath = options.isDev && process.platform === 'win32' ? pathToFileURL(options.buildDir).href : options.buildDir
+        const functionModule = await import(`${filePath}/nuxt-proxy-functions.mjs`)
         opts[functionName as keyof ProxyOptions] = functionModule.default[index][functionName]
     }
 
