@@ -45,12 +45,12 @@ interface ProxyOptions extends Server.ServerOptions {
 const proxies: Record<string, [ProxyServer, ProxyOptions]> = {}
 const functionNames = ['rewrite', 'configure', 'configureWithEvent', 'bypass'];
 
-Object.keys(options.proxies!).forEach(async (context) => {
+Object.keys(options.proxies!).forEach(async (context, index) => {
     let opts = initializeOpts(options.proxies![context]);
 
     if (!opts) return
 
-    await Promise.all(functionNames.map(async (name, index) => getFunction(opts, name, index)));
+    await Promise.all(functionNames.map(async (name) => getFunction(opts, name, index)));
 
     const proxy = createProxyServer(opts)
 
@@ -155,8 +155,8 @@ function debug(message?: any) {
 async function getFunction(opts: ProxyOptions, functionName: string, index: number) {
     if (opts[functionName as keyof ProxyOptions]) {
         const filePath = options.isDev && process.platform === 'win32' ? pathToFileURL(options.buildDir).href : options.buildDir
-        const functionModule = await import(`${filePath}/nuxt-proxy-functions.mjs`)
-        opts[functionName as keyof ProxyOptions] = functionModule.default[index][functionName]
+        const functionModule = await import(`${filePath}/nuxt-proxy-functions.mjs`).then((output) => output.default || output)
+        opts[functionName as keyof ProxyOptions] = functionModule[index][functionName]
     }
 
     return opts

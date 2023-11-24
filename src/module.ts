@@ -85,9 +85,10 @@ async function createProxyFunctions(options: ModuleOptions) {
                     // Only if the option had at least one function, increment the index and append to contents
                     if (hasFunction) {
                         contents += '\n' + idx + ': {' + tempContents + '\n },';
-                        idx++;
                     }
                 }
+
+                idx++;
             }
 
             contents += '\n}';
