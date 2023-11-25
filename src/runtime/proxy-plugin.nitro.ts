@@ -108,6 +108,28 @@ export default defineEventHandler(async (event) => {
             }
         }
 
+        // @ts-ignore: server property exists
+        const httpServer = event.node.res.socket?.server as http.Server
+
+        if (httpServer) {
+            httpServer.on('upgrade', (req, socket, head) => {
+                const url = req.url!
+                for (const context in proxies) {
+                    if (doesProxyContextMatchUrl(context, url)) {
+                        const [proxy, opts] = proxies[context]
+                        if ( opts.ws || opts.target?.toString!().startsWith('ws:') || opts.target?.toString!().startsWith('wss:') ) {
+                            if (opts.rewrite) {
+                                req.url = opts.rewrite(url) as string
+                            }
+                            debug(`${req.url} -> ws ${opts.target}`)
+                            proxy.ws(req, socket as net.Socket, head)
+                            return
+                        }
+                    }
+                }
+            })
+        }
+
         const url = event.node.req.url!
 
         for (const context in proxies) {
