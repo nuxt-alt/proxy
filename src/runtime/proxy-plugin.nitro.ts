@@ -43,7 +43,7 @@ interface ProxyOptions extends Server.ServerOptions {
 
 // lazy require only when proxy is used
 const proxies: Record<string, [ProxyServer, ProxyOptions]> = {}
-const functionNames = ['rewrite', 'configure', 'configureWithEvent', 'bypass'];
+const functionNames = ['rewrite', 'configure', 'configureWithEvent', 'bypass', 'createWsClientTransformStream', 'createWsServerTransformStream'];
 
 Object.keys(options.proxies!).forEach(async (context, index) => {
     let opts = initializeOpts(options.proxies![context]);
@@ -108,28 +108,6 @@ export default defineEventHandler(async (event) => {
             }
         }
 
-        // @ts-ignore: server property exists
-        const httpServer = event.node.res.socket?.server as http.Server
-
-        if (httpServer) {
-            httpServer.on('upgrade', (req, socket, head) => {
-                const url = req.url!
-                for (const context in proxies) {
-                    if (doesProxyContextMatchUrl(context, url)) {
-                        const [proxy, opts] = proxies[context]
-                        if ( opts.ws || opts.target?.toString!().startsWith('ws:') || opts.target?.toString!().startsWith('wss:') ) {
-                            if (opts.rewrite) {
-                                req.url = opts.rewrite(url) as string
-                            }
-                            debug(`${req.url} -> ws ${opts.target}`)
-                            proxy.ws(req, socket as net.Socket, head)
-                            return
-                        }
-                    }
-                }
-            })
-        }
-
         const url = event.node.req.url!
 
         for (const context in proxies) {
@@ -176,9 +154,9 @@ function debug(message?: any) {
 
 async function getFunction(opts: ProxyOptions, functionName: string, index: number) {
     if (opts[functionName as keyof ProxyOptions]) {
-        const filePath = options.isDev && process.platform === 'win32' ? pathToFileURL(options.buildDir).href : options.buildDir
+        const filePath = pathToFileURL(options.buildDir).href
         const functionModule = await import(`${filePath}/nuxt-proxy-functions.mjs`).then((output) => output.default || output)
-        opts[functionName as keyof ProxyOptions] = functionModule[index][functionName]
+        opts[functionName] = functionModule[index][functionName]
     }
 
     return opts

@@ -16,6 +16,7 @@ export default defineNuxtModule({
     },
     defaults: ({ options }) => ({
         buildDir: options.buildDir,
+        proxies: {},
         isDev: options.dev,
         debug: options.dev ? true : false
     }),

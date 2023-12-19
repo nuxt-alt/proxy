@@ -1,6 +1,6 @@
 {
     "name": "@nuxt-alt/proxy",
-    "version": "2.4.7",
+    "version": "2.4.9",
     "description": "An alternative module to @nuxtjs/proxy",
     "homepage": "https://github.com/nuxt-alt/proxy",
     "author": "Teranode",
@@ -33,7 +33,7 @@
         "picocolors": "^1.0.0"
     },
     "devDependencies": {
-        "@types/node": "^18",
+        "@types/node": "^20",
         "@types/ws": "^8.5.10",
         "jiti": "^1.21.0",
         "nuxt": "^3.8.2",
