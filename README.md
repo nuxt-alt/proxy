@@ -32,6 +32,11 @@ export default defineNuxtConfig({
 
 - Type: `Object`
 - Default: `{}`
+- 
+### `debug`
+
+- Type: `Boolean`
+- Default: `false` (false in prod | true in dev)
 
 urls to proxy
 
@@ -43,6 +48,7 @@ export default defineNuxtConfig({
         '@nuxt-alt/proxy',
     ],
     proxy: {
+        debug: false,
         proxies: {
             // string shorthand
             '/foo': 'http://localhost:4567',
@@ -56,14 +62,22 @@ export default defineNuxtConfig({
             '^/fallback/.*': {
                 target: 'http://jsonplaceholder.typicode.com',
                 changeOrigin: true,
-                rewrite: (path) => path.replace(/^\/fallback/, '')
+                rewrite: (path) => path.replace(/^\/fallback/, ''),
+                configure: (proxy, options, runtimeConfig) => {
+                    // proxy will be an instance of 'http-proxy'
+                },
             },
             // Using the proxy instance
             '/api': {
                 target: 'http://jsonplaceholder.typicode.com',
                 changeOrigin: true,
-                configure: (proxy, options) => {
+                configureWithEvent: (proxy, options, runtimeConfig, event, h3) => {
                     // proxy will be an instance of 'http-proxy'
+                    // event will be an instance of the matched url
+                    proxy.on('proxyReq', (proxyReq) => {
+                        const cookies = h3.parseCookies(event)
+                        console.log(cookies)
+                    })
                 }
             },
             // Proxying websockets or socket.io
