@@ -4,8 +4,6 @@ import * as NuxtSchema from '@nuxt/schema'
 import type { H3Event } from 'h3'
 
 export interface ModuleOptions {
-    buildDir?: NuxtSchema.NuxtOptions['buildDir']
-    isDev?: boolean
     debug?: boolean
     proxies?: {
         [key: string]: string | ProxyOptions

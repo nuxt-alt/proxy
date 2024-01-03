@@ -1,9 +1,10 @@
 import * as http from 'node:http'
 import * as net from 'node:net'
+import type { NitroAppPlugin } from 'nitropack'
 import { createProxyServer, type ProxyServer, type Server } from '@refactorjs/http-proxy'
-import { defineEventHandler, type H3Event } from 'h3'
+import { eventHandler, type H3Event } from 'h3'
+// @ts-expect-error: vitrual file
 import { options } from '#nuxt-proxy-options'
-import { pathToFileURL } from 'node:url'
 import colors from 'picocolors'
 
 interface ProxyOptions extends Server.ServerOptions {
@@ -43,14 +44,11 @@ interface ProxyOptions extends Server.ServerOptions {
 
 // lazy require only when proxy is used
 const proxies: Record<string, [ProxyServer, ProxyOptions]> = {}
-const functionNames = ['rewrite', 'configure', 'configureWithEvent', 'bypass', 'createWsClientTransformStream', 'createWsServerTransformStream'];
 
 Object.keys(options.proxies!).forEach(async (context, index) => {
     let opts = initializeOpts(options.proxies![context]);
 
     if (!opts) return
-
-    await Promise.all(functionNames.map(async (name) => getFunction(opts, name, index)));
 
     const proxy = createProxyServer(opts)
 
@@ -66,7 +64,7 @@ Object.keys(options.proxies!).forEach(async (context, index) => {
         if (!res) {
             console.error(`${colors.red(`http proxy error: ${err.message}`)}\n${err.stack}`)
         } else if ('req' in res) {
-            console.error(`${colors.red(`http proxy error at ${originalRes.req.url}:`)}\n${err.stack}`)
+            console.error(`${colors.red(`http proxy error at ${(originalRes as http.ServerResponse).req.url}:`)}\n${err.stack}`)
             if (!res.headersSent && !res.writableEnded) {
                 res.writeHead(500, {
                     'Content-Type': 'text/plain',
@@ -98,68 +96,63 @@ Object.keys(options.proxies!).forEach(async (context, index) => {
     proxies[context] = [proxy, { ...opts }]
 })
 
-export default defineEventHandler(async (event) => {
-    await new Promise<void>((resolve, reject) => {
-        const next = (err?: unknown) => {
-            if (err) {
-                reject(err)
-            } else {
-                resolve()
-            }
-        }
-
-        const url = event.node.req.url!
-
-        for (const context in proxies) {
-            if (doesProxyContextMatchUrl(context, url)) {
-                const [proxy, opts] = proxies[context]
-                const options: Server.ServerOptions = {}
-
-                if (opts.configureWithEvent) {
-                    opts.configureWithEvent(proxy, opts, event)
-                }
-
-                if (opts.bypass) {
-                    const bypassResult = opts.bypass(event.node.req, event.node.res, opts)
-                    if (typeof bypassResult === 'string') {
-                        event.node.req.url = bypassResult
-                        debug('bypass: ' + event.node.req.url + ' -> ' + bypassResult)
-                        return next()
-                    } else if (bypassResult === false) {
-                        debug('bypass: ' + event.node.req.url + ' -> 404')
-                        event.node.res.statusCode = 404
-                        return event.node.res.end()
+export default <NitroAppPlugin> function (nitroApp) {
+    nitroApp.h3App.stack.unshift({
+        route: '/',
+        handler: eventHandler(async (event) => {
+            await new Promise<void>((resolve, reject) => {
+                const next = (err?: unknown) => {
+                    if (err) {
+                        reject(err)
+                    } else {
+                        resolve()
                     }
                 }
 
-                if (opts.rewrite) {
-                    event.node.req.url = opts.rewrite(event.node.req.url!) as string
+                const url = event.node.req.url!
+
+                for (const context in proxies) {
+                    if (doesProxyContextMatchUrl(context, url)) {
+                        const [proxy, opts] = proxies[context]
+                        const options: Server.ServerOptions = {}
+        
+                        if (opts.configureWithEvent) {
+                            opts.configureWithEvent(proxy, opts, event)
+                        }
+
+                        if (opts.bypass) {
+                            const bypassResult = opts.bypass(event.node.req, event.node.res, opts)
+                            if (typeof bypassResult === 'string') {
+                                event.node.req.url = bypassResult
+                                debug('bypass: ' + event.node.req.url + ' -> ' + bypassResult)
+                                return next()
+                            } else if (bypassResult === false) {
+                                debug('bypass: ' + event.node.req.url + ' -> 404')
+                                event.node.res.statusCode = 404
+                                return event.node.res.end()
+                            }
+                        }
+
+                        if (opts.rewrite) {
+                            event.node.req.url = opts.rewrite(event.node.req.url!) as string
+                        }
+
+                        debug(event.node.req.url + ' -> ' + opts.target || opts.forward)
+
+                        proxy.web(event.node.req, event.node.res, options)
+                        return
+                    }
                 }
-
-                debug(event.node.req.url + ' -> ' + opts.target || opts.forward)
-
-                proxy.web(event.node.req, event.node.res, options)
-                return;
-            }
-        }
-        next()
+                next()
+            })
+        })
     })
-})
+}
 
 function debug(message?: any) {
     if (options.debug) {
         console.log(message)
     }
-}
-
-async function getFunction(opts: ProxyOptions, functionName: string, index: number) {
-    if (opts[functionName as keyof ProxyOptions]) {
-        const filePath = pathToFileURL(options.buildDir).href
-        const functionModule = await import(`${filePath}/nuxt-proxy-functions.mjs`).then((output) => output.default || output)
-        opts[functionName] = functionModule[index][functionName]
-    }
-
-    return opts
 }
 
 function initializeOpts(optsInput: ProxyOptions | string) {
