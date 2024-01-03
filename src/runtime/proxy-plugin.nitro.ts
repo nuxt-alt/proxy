@@ -1,11 +1,12 @@
-import * as http from 'node:http'
-import * as net from 'node:net'
+import * as H3 from 'h3'
+import type { IncomingMessage, ServerResponse } from 'node:http'
+import type { Socket } from 'node:net'
 import type { NitroAppPlugin, NitroRuntimeConfig } from 'nitropack'
 import { createProxyServer, type ProxyServer, type Server } from '@refactorjs/http-proxy'
 import { eventHandler, type H3Event } from 'h3'
 // @ts-expect-error: alias
 import { useRuntimeConfig } from '#internal/nitro'
-// @ts-expect-error: vitrual file
+// @ts-expect-error: virtual file
 import { options } from '#nuxt-proxy-options'
 import colors from 'picocolors'
 
@@ -34,14 +35,15 @@ interface ProxyOptions extends Server.ServerOptions {
         options: ProxyOptions,
         runtimeConfig: NitroRuntimeConfig,
         event: H3Event,
+        h3: typeof H3
     ) => void | null | undefined | false) | false
 
     /**
      * webpack-dev-server style bypass function
      */
     bypass?: ((
-        req: http.IncomingMessage,
-        res: http.ServerResponse,
+        req: IncomingMessage,
+        res: ServerResponse,
         options: ProxyOptions,
         runtimeConfig: NitroRuntimeConfig
     ) => void | null | undefined | false | string) | false
@@ -64,12 +66,12 @@ Object.keys(options.proxies!).forEach(async (context) => {
     proxy.on('error', (err, req, originalRes) => {
         // When it is ws proxy, res is net.Socket
         // originalRes can be falsy if the proxy itself errored
-        const res = originalRes as http.ServerResponse | net.Socket | undefined
+        const res = originalRes as ServerResponse | Socket | undefined
 
         if (!res) {
             console.error(`${colors.red(`http proxy error: ${err.message}`)}\n${err.stack}`)
         } else if ('req' in res) {
-            console.error(`${colors.red(`http proxy error at ${(originalRes as http.ServerResponse).req.url}:`)}\n${err.stack}`)
+            console.error(`${colors.red(`http proxy error at ${(originalRes as ServerResponse).req.url}:`)}\n${err.stack}`)
             if (!res.headersSent && !res.writableEnded) {
                 res.writeHead(500, {
                     'Content-Type': 'text/plain',
@@ -80,12 +82,6 @@ Object.keys(options.proxies!).forEach(async (context) => {
             console.error(`${colors.red(`ws proxy error:`)}\n${err.stack}`)
             res.end()
         }
-    })
-
-    proxy.on('proxyReqWs', (proxyReq, req, options, socket, head) => {
-        socket.on('error', (err) => {
-            console.error(`${colors.red(`ws proxy socket error:`)}\n${err.stack}`)
-        })
     })
 
     proxy.on('proxyRes', (proxyRes, req, res) => {
@@ -102,11 +98,10 @@ Object.keys(options.proxies!).forEach(async (context) => {
 })
 
 export default <NitroAppPlugin> function (nitroApp) {
-    useRuntimeConfig()
     nitroApp.h3App.stack.unshift({
         route: '/',
         handler: eventHandler(async (event) => {
-            await new Promise<void>((resolve, reject) => {
+            await new Promise<void>(async (resolve, reject) => {
                 const next = (err?: unknown) => {
                     if (err) {
                         reject(err)
@@ -123,7 +118,8 @@ export default <NitroAppPlugin> function (nitroApp) {
                         const options: Server.ServerOptions = {}
 
                         if (opts.configureWithEvent) {
-                            opts.configureWithEvent(proxy, opts, useRuntimeConfig() as NitroRuntimeConfig, event)
+                            const H3 = await import('h3')
+                            opts.configureWithEvent(proxy, opts, useRuntimeConfig() as NitroRuntimeConfig, event, H3)
                         }
 
                         if (opts.bypass) {
