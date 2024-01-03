@@ -16,7 +16,7 @@ interface ProxyOptions extends Server.ServerOptions {
      */
     rewrite?: ((
         path: string
-    ) => string | null | undefined | false) | false
+    ) => string | null | undefined | false)
 
     /**
      * configure the proxy server (e.g. listen to events)
@@ -25,7 +25,7 @@ interface ProxyOptions extends Server.ServerOptions {
         proxy: ProxyServer,
         options: ProxyOptions,
         runtimeConfig: NitroRuntimeConfig
-    ) => void | null | undefined | false) | false
+    ) => void | null | undefined | false)
 
     /**
      * configure the proxy server (e.g. listen to events) with nitro event
@@ -36,7 +36,7 @@ interface ProxyOptions extends Server.ServerOptions {
         runtimeConfig: NitroRuntimeConfig,
         event: H3Event,
         h3: typeof H3
-    ) => void | null | undefined | false) | false
+    ) => void | null | undefined | false | H3Event)
 
     /**
      * webpack-dev-server style bypass function
@@ -46,7 +46,7 @@ interface ProxyOptions extends Server.ServerOptions {
         res: ServerResponse,
         options: ProxyOptions,
         runtimeConfig: NitroRuntimeConfig
-    ) => void | null | undefined | false | string) | false
+    ) => void | null | undefined | false | string)
 }
 
 // lazy require only when proxy is used

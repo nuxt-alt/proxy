@@ -25,22 +25,24 @@ export interface ProxyOptions extends Server.ServerOptions {
     /**
      * rewrite path
      */
-    rewrite?: string | ((path: string) => string | null | undefined | false)
+    rewrite?: ((path: string) => string | null | undefined | false)
 
     /**
      * configure the proxy server (e.g. listen to events)
      */
-    configure?: string | ((proxy: ProxyServer, options: ProxyOptions, runtimeConfig: NitroRuntimeConfig) => void | null | undefined | false)
+    configure?: ((proxy: ProxyServer, options: ProxyOptions, runtimeConfig: NitroRuntimeConfig) => void | null | undefined | false)
 
     /**
-     * configure the proxy server (e.g. listen to events) with nitro event
+     * configure the proxy server (e.g. listen to events) with nitro event.
+     * This runs before being sent to proxy.web() so you can alter the event
+     * and return it.
      */
-    configureWithEvent?: string | ((proxy: ProxyServer, options: ProxyOptions, runtimeConfig: NitroRuntimeConfig, event: H3Event, h3: typeof H3) => void | null | undefined | false)
+    configureWithEvent?: ((proxy: ProxyServer, options: ProxyOptions, runtimeConfig: NitroRuntimeConfig, event: H3Event, h3: typeof H3) => void | null | undefined | false | H3Event)
 
     /**
      * webpack-dev-server style bypass function
      */
-    bypass?: string | ((
+    bypass?: ((
         req: IncomingMessage,
         res: ServerResponse,
         options: ProxyOptions,
