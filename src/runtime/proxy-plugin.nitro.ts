@@ -1,8 +1,10 @@
 import * as http from 'node:http'
 import * as net from 'node:net'
-import type { NitroAppPlugin } from 'nitropack'
+import type { NitroAppPlugin, NitroRuntimeConfig } from 'nitropack'
 import { createProxyServer, type ProxyServer, type Server } from '@refactorjs/http-proxy'
 import { eventHandler, type H3Event } from 'h3'
+// @ts-expect-error: alias
+import { useRuntimeConfig } from '#internal/nitro'
 // @ts-expect-error: vitrual file
 import { options } from '#nuxt-proxy-options'
 import colors from 'picocolors'
@@ -20,16 +22,18 @@ interface ProxyOptions extends Server.ServerOptions {
      */
     configure?: ((
         proxy: ProxyServer,
-        options: ProxyOptions
+        options: ProxyOptions,
+        runtimeConfig: NitroRuntimeConfig
     ) => void | null | undefined | false) | false
 
     /**
-     * configure the proxy server (e.g. listen to events)
+     * configure the proxy server (e.g. listen to events) with nitro event
      */
     configureWithEvent?: ((
         proxy: ProxyServer,
         options: ProxyOptions,
-        event: H3Event
+        runtimeConfig: NitroRuntimeConfig,
+        event: H3Event,
     ) => void | null | undefined | false) | false
 
     /**
@@ -38,14 +42,15 @@ interface ProxyOptions extends Server.ServerOptions {
     bypass?: ((
         req: http.IncomingMessage,
         res: http.ServerResponse,
-        options: ProxyOptions
+        options: ProxyOptions,
+        runtimeConfig: NitroRuntimeConfig
     ) => void | null | undefined | false | string) | false
 }
 
 // lazy require only when proxy is used
 const proxies: Record<string, [ProxyServer, ProxyOptions]> = {}
 
-Object.keys(options.proxies!).forEach(async (context, index) => {
+Object.keys(options.proxies!).forEach(async (context) => {
     let opts = initializeOpts(options.proxies![context]);
 
     if (!opts) return
@@ -53,7 +58,7 @@ Object.keys(options.proxies!).forEach(async (context, index) => {
     const proxy = createProxyServer(opts)
 
     if (opts.configure) {
-        opts.configure(proxy, opts)
+        opts.configure(proxy, opts, useRuntimeConfig() as NitroRuntimeConfig)
     }
 
     proxy.on('error', (err, req, originalRes) => {
@@ -97,6 +102,7 @@ Object.keys(options.proxies!).forEach(async (context, index) => {
 })
 
 export default <NitroAppPlugin> function (nitroApp) {
+    useRuntimeConfig()
     nitroApp.h3App.stack.unshift({
         route: '/',
         handler: eventHandler(async (event) => {
@@ -115,13 +121,13 @@ export default <NitroAppPlugin> function (nitroApp) {
                     if (doesProxyContextMatchUrl(context, url)) {
                         const [proxy, opts] = proxies[context]
                         const options: Server.ServerOptions = {}
-        
+
                         if (opts.configureWithEvent) {
-                            opts.configureWithEvent(proxy, opts, event)
+                            opts.configureWithEvent(proxy, opts, useRuntimeConfig() as NitroRuntimeConfig, event)
                         }
 
                         if (opts.bypass) {
-                            const bypassResult = opts.bypass(event.node.req, event.node.res, opts)
+                            const bypassResult = opts.bypass(event.node.req, event.node.res, opts, useRuntimeConfig() as NitroRuntimeConfig)
                             if (typeof bypassResult === 'string') {
                                 event.node.req.url = bypassResult
                                 debug('bypass: ' + event.node.req.url + ' -> ' + bypassResult)
