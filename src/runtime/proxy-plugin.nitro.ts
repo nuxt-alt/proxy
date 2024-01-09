@@ -3,7 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Socket } from 'node:net'
 import type { NitroAppPlugin, NitroRuntimeConfig } from 'nitropack'
 import { createProxyServer, type ProxyServer, type Server } from '@refactorjs/http-proxy'
-import { eventHandler, type H3Event } from 'h3'
+import { eventHandler, H3Event } from 'h3'
 // @ts-expect-error: alias
 import { useRuntimeConfig } from '#internal/nitro'
 // @ts-expect-error: virtual file
@@ -97,7 +97,7 @@ Object.keys(options.proxies!).forEach(async (context) => {
     proxies[context] = [proxy, { ...opts }]
 })
 
-export default <NitroAppPlugin> function (nitroApp) {
+export default <NitroAppPlugin>function (nitroApp) {
     nitroApp.h3App.stack.unshift({
         route: '/',
         handler: eventHandler(async (event) => {
@@ -119,7 +119,11 @@ export default <NitroAppPlugin> function (nitroApp) {
 
                         if (opts.configureWithEvent) {
                             const H3 = await import('h3')
-                            opts.configureWithEvent(proxy, opts, useRuntimeConfig() as NitroRuntimeConfig, event, H3)
+                            const eventHandler = opts.configureWithEvent(proxy, opts, useRuntimeConfig() as NitroRuntimeConfig, event, H3)
+
+                            if (eventHandler instanceof H3Event) {
+                                event = eventHandler
+                            }
                         }
 
                         if (opts.bypass) {

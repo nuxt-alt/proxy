@@ -1,14 +1,26 @@
 import type { ProxyServer, Server } from '@refactorjs/http-proxy'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { NitroRuntimeConfig } from 'nitropack'
+import type { H3Event } from 'h3'
+import * as http from 'node:http'
+import * as https from 'node:https'
 import * as NuxtSchema from '@nuxt/schema'
 import * as H3 from 'h3'
-import type { H3Event } from 'h3'
 
 export interface ModuleOptions {
     debug?: boolean
+    // Experimental
+    experimental?: {
+        listener?: boolean
+    }
     proxies?: {
-        [key: string]: string | ProxyOptions
+        [key: string]: string | ProxyOptions | undefined
+    }
+}
+
+declare module 'nitropack' {
+    interface NitroRuntimeHooks {
+        'listen:node': (server: http.Server | https.Server) => void
     }
 }
 

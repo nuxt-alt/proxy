@@ -32,13 +32,29 @@ export default defineNuxtConfig({
 
 - Type: `Object`
 - Default: `{}`
-- 
+
 ### `debug`
 
 - Type: `Boolean`
 - Default: `false` (false in prod | true in dev)
 
 urls to proxy
+
+### `experimental.listener`
+
+- Type: `Boolean`
+- Default: `false`
+
+Enable this to use a nitro plugin that tries to hook onto the server's request and grab the server to listen in production. (doesnt work in dev mode)
+This is untested in non-node environments.
+
+Nitro hook available after enabling:
+
+```ts
+nitroApp.hooks.hook('listen:node', (server) => {})
+```
+
+## Config Example
 
 ```ts
 import { defineNuxtConfig } from 'nuxt/config'
@@ -49,6 +65,9 @@ export default defineNuxtConfig({
     ],
     proxy: {
         debug: false,
+        experimental: {
+            listener: false
+        },
         proxies: {
             // string shorthand
             '/foo': 'http://localhost:4567',
@@ -80,7 +99,7 @@ export default defineNuxtConfig({
                     })
                 }
             },
-            // Proxying websockets or socket.io
+            // Proxying websockets or socket.io - Note this only works with `experimental.listener`
             '/socket.io': {
                 target: 'ws://localhost:5173',
                 ws: true

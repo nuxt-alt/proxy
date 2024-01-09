@@ -1,4 +1,4 @@
-import { createResolver, defineNuxtModule } from '@nuxt/kit'
+import { createResolver, defineNuxtModule, addPlugin, addImports } from '@nuxt/kit'
 import { serialize } from '@refactorjs/serialize'
 import { name, version } from '../package.json'
 import type { ModuleOptions } from './types'
@@ -17,7 +17,10 @@ export default defineNuxtModule({
     },
     defaults: ({ options }) => ({
         proxies: {},
-        debug: options.dev ? true : false
+        debug: options.dev ? true : false,
+        experimental: {
+            listener: false
+        }
     }),
     async setup(options, nuxt) {
         const resolver = createResolver(import.meta.url)
@@ -35,6 +38,10 @@ export default defineNuxtModule({
             config.virtual['#nuxt-proxy-options'] = `export const options = ${serialize(moduleConfig, { space: 4 })}`
             config.plugins = config.plugins || []
             config.plugins.push(resolver.resolve(runtimeDir, 'proxy-plugin.nitro'))
+
+            if (moduleConfig.experimental?.listener) {
+                config.plugins.push(resolver.resolve(runtimeDir, 'socket-plugin.nitro'))
+            }
         })
     }
 })
