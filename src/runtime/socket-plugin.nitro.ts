@@ -56,16 +56,16 @@ let alreadyCalled = false
 export default <NitroAppPlugin>function (nitroApp) {
     nitroApp.hooks.hook('request', async (event) => {
         // @ts-expect-error
-        const server = event.node.req.socket?.server as HttpServer | SecureHttpServer || event.node.res.socket?.server as HttpServer | SecureHttpServer
+        const server = event.node.req.socket?.server as HttpServer | SecureHttpServer
 
         if (server && !alreadyCalled) {
-            alreadyCalled = true
             await nitroApp.hooks.callHook('listen:node', server)
+            alreadyCalled = true
         }
     })
 
     nitroApp.hooks.hook('listen:node', (server) => {
-        server.on('upgrade', async (req, socket, head) => {
+        server.on('upgrade', async (req, socket: Socket, head) => {
             const url = req.url!
             for (const context in proxies) {
                 if (doesProxyContextMatchUrl(context, url)) {
@@ -75,7 +75,7 @@ export default <NitroAppPlugin>function (nitroApp) {
                             req.url = opts.rewrite(url) as string
                         }
                         debug(`${req.url} -> ws ${opts.target}`)
-                        proxy.ws(req, socket as Socket, head)
+                        proxy.ws(req, socket, head)
                         return
                     }
                 }

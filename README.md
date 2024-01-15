@@ -48,7 +48,9 @@ urls to proxy
 Enable this to use a nitro plugin that tries to hook onto the server's request and grab the server to listen in production. (doesnt work in dev mode)
 This is untested in non-node environments.
 
-Nitro hook available after enabling:
+This property also affects websockets in dev mode for proxying so enable it if you want to proxy websockets in dev mode.
+
+Nitro hook available after enabling (only in production):
 
 ```ts
 nitroApp.hooks.hook('listen:node', (server) => {})

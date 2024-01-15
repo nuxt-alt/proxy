@@ -1,6 +1,6 @@
 {
     "name": "@nuxt-alt/proxy",
-    "version": "2.5.5",
+    "version": "2.5.6",
     "description": "An alternative module to @nuxtjs/proxy",
     "homepage": "https://github.com/nuxt-alt/proxy",
     "author": "Teranode",

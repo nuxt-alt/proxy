@@ -1,7 +1,8 @@
-import { createResolver, defineNuxtModule, addPlugin, addImports } from '@nuxt/kit'
+import type { ModuleOptions } from './types'
+import { createResolver, defineNuxtModule } from '@nuxt/kit'
+import { handleDevWsProxy } from './dev'
 import { serialize } from '@refactorjs/serialize'
 import { name, version } from '../package.json'
-import type { ModuleOptions } from './types'
 import { defu } from 'defu'
 
 const CONFIG_KEY = 'proxy'
@@ -29,6 +30,10 @@ export default defineNuxtModule({
         const runtimeDir = resolver.resolve('./runtime')
         nuxt.options.build.transpile.push(runtimeDir)
 
+        if (nuxt.options.dev && moduleConfig.experimental?.listener) {
+            handleDevWsProxy(moduleConfig, nuxt)
+        }
+
         nuxt.hook('nitro:config', (config) => {
             config.externals = config.externals || {}
             config.externals.inline = config.externals.inline || []
@@ -39,7 +44,7 @@ export default defineNuxtModule({
             config.plugins = config.plugins || []
             config.plugins.push(resolver.resolve(runtimeDir, 'proxy-plugin.nitro'))
 
-            if (moduleConfig.experimental?.listener) {
+            if (moduleConfig.experimental?.listener && !nuxt.options.dev) {
                 config.plugins.push(resolver.resolve(runtimeDir, 'socket-plugin.nitro'))
             }
         })
