@@ -1,6 +1,4 @@
 import type { NitroAppPlugin, NitroRuntimeConfig } from 'nitropack'
-import type { Server as HttpServer } from 'node:http'
-import type { Server as SecureHttpServer } from 'node:https'
 import type { Socket } from 'node:net'
 import { createProxyServer, type ProxyServer, type Server } from '@refactorjs/http-proxy'
 // @ts-expect-error: virtual file
@@ -51,19 +49,7 @@ Object.keys(options.proxies!).forEach(async (context) => {
     proxies[context] = [proxy, { ...opts }]
 })
 
-let alreadyCalled = false
-
 export default <NitroAppPlugin>function (nitroApp) {
-    nitroApp.hooks.hook('request', async (event) => {
-        // @ts-expect-error
-        const server = event.node.req.socket?.server as HttpServer | SecureHttpServer
-
-        if (server && !alreadyCalled) {
-            await nitroApp.hooks.callHook('listen:node', server)
-            alreadyCalled = true
-        }
-    })
-
     nitroApp.hooks.hook('listen:node', (server) => {
         server.on('upgrade', async (req, socket: Socket, head) => {
             const url = req.url!
@@ -92,8 +78,8 @@ function debug(message?: any) {
 
 function initializeOpts(optsInput: ProxyOptions | string) {
     let opts = optsInput;
-    if (typeof opts === 'string') opts = { target: opts, changeOrigin: true } as ProxyOptions;
-    if (typeof opts === 'object') opts = { changeOrigin: true, ...opts } as ProxyOptions;
+    if (typeof opts === 'string') opts = { target: opts, changeHost: true } as ProxyOptions;
+    if (typeof opts === 'object') opts = { changeHost: true, ...opts } as ProxyOptions;
     return opts;
 }
 

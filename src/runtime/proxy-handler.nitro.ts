@@ -1,9 +1,10 @@
 import * as H3 from 'h3'
+import { defineEventHandler } from 'h3';
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Socket } from 'node:net'
-import type { NitroAppPlugin, NitroRuntimeConfig } from 'nitropack'
+import type { NitroRuntimeConfig } from 'nitropack'
 import { createProxyServer, type ProxyServer, type Server } from '@refactorjs/http-proxy'
-import { eventHandler, H3Event } from 'h3'
+import { H3Event } from 'h3'
 // @ts-expect-error: alias
 import { useRuntimeConfig } from '#internal/nitro'
 // @ts-expect-error: virtual file
@@ -97,63 +98,58 @@ Object.keys(options.proxies!).forEach(async (context) => {
     proxies[context] = [proxy, { ...opts }]
 })
 
-export default <NitroAppPlugin>function (nitroApp) {
-    nitroApp.h3App.stack.unshift({
-        route: '/',
-        handler: eventHandler(async (event) => {
-            await new Promise<void>(async (resolve, reject) => {
-                const next = (err?: unknown) => {
-                    if (err) {
-                        reject(err)
-                    } else {
-                        resolve()
+export default defineEventHandler(async event => {
+    await new Promise<void>(async (resolve, reject) => {
+        const next = (err?: unknown) => {
+            if (err) {
+                reject(err)
+            } else {
+                resolve()
+            }
+        }
+
+        const url = event.node.req.url!
+
+        for (const context in proxies) {
+            if (doesProxyContextMatchUrl(context, url)) {
+                const [proxy, opts] = proxies[context]
+                const options: Server.ServerOptions = {}
+
+                if (opts.configureWithEvent) {
+                    const H3 = await import('h3')
+                    const eventHandler = opts.configureWithEvent(proxy, opts, useRuntimeConfig() as NitroRuntimeConfig, event, H3)
+
+                    if (eventHandler instanceof H3Event) {
+                        event = eventHandler
                     }
                 }
 
-                const url = event.node.req.url!
-
-                for (const context in proxies) {
-                    if (doesProxyContextMatchUrl(context, url)) {
-                        const [proxy, opts] = proxies[context]
-                        const options: Server.ServerOptions = {}
-
-                        if (opts.configureWithEvent) {
-                            const H3 = await import('h3')
-                            const eventHandler = opts.configureWithEvent(proxy, opts, useRuntimeConfig() as NitroRuntimeConfig, event, H3)
-
-                            if (eventHandler instanceof H3Event) {
-                                event = eventHandler
-                            }
-                        }
-
-                        if (opts.bypass) {
-                            const bypassResult = opts.bypass(event.node.req, event.node.res, opts, useRuntimeConfig() as NitroRuntimeConfig)
-                            if (typeof bypassResult === 'string') {
-                                event.node.req.url = bypassResult
-                                debug('bypass: ' + event.node.req.url + ' -> ' + bypassResult)
-                                return next()
-                            } else if (bypassResult === false) {
-                                debug('bypass: ' + event.node.req.url + ' -> 404')
-                                event.node.res.statusCode = 404
-                                return event.node.res.end()
-                            }
-                        }
-
-                        if (opts.rewrite) {
-                            event.node.req.url = opts.rewrite(event.node.req.url!) as string
-                        }
-
-                        debug(event.node.req.url + ' -> ' + opts.target || opts.forward)
-
-                        proxy.web(event.node.req, event.node.res, options)
-                        return
+                if (opts.bypass) {
+                    const bypassResult = opts.bypass(event.node.req, event.node.res, opts, useRuntimeConfig() as NitroRuntimeConfig)
+                    if (typeof bypassResult === 'string') {
+                        event.node.req.url = bypassResult
+                        debug('bypass: ' + event.node.req.url + ' -> ' + bypassResult)
+                        return next()
+                    } else if (bypassResult === false) {
+                        debug('bypass: ' + event.node.req.url + ' -> 404')
+                        event.node.res.statusCode = 404
+                        return event.node.res.end()
                     }
                 }
-                next()
-            })
-        })
+
+                if (opts.rewrite) {
+                    event.node.req.url = opts.rewrite(event.node.req.url!) as string
+                }
+
+                debug(event.node.req.url + ' -> ' + opts.target || opts.forward)
+
+                proxy.web(event.node.req, event.node.res, options)
+                return
+            }
+        }
+        next()
     })
-}
+})
 
 function debug(message?: any) {
     if (options.debug) {
@@ -163,8 +159,8 @@ function debug(message?: any) {
 
 function initializeOpts(optsInput: ProxyOptions | string) {
     let opts = optsInput;
-    if (typeof opts === 'string') opts = { target: opts, changeOrigin: true } as ProxyOptions;
-    if (typeof opts === 'object') opts = { changeOrigin: true, ...opts } as ProxyOptions;
+    if (typeof opts === 'string') opts = { target: opts, changeHost: true } as ProxyOptions;
+    if (typeof opts === 'object') opts = { changeHost: true, ...opts } as ProxyOptions;
     return opts;
 }
 

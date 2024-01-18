@@ -58,8 +58,8 @@ function debug(message?: any, options?: ModuleOptions) {
 
 function initializeOpts(optsInput: ProxyOptions | string) {
     let opts = optsInput;
-    if (typeof opts === 'string') opts = { target: opts, changeOrigin: true } as ProxyOptions;
-    if (typeof opts === 'object') opts = { changeOrigin: true, ...opts } as ProxyOptions;
+    if (typeof opts === 'string') opts = { target: opts, changeHost: true } as ProxyOptions;
+    if (typeof opts === 'object') opts = { changeHost: true, ...opts } as ProxyOptions;
     return opts;
 }
 

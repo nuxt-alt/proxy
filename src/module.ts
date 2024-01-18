@@ -1,5 +1,5 @@
 import type { ModuleOptions } from './types'
-import { createResolver, defineNuxtModule } from '@nuxt/kit'
+import { createResolver, defineNuxtModule, addServerHandler } from '@nuxt/kit'
 import { handleDevWsProxy } from './dev'
 import { serialize } from '@refactorjs/serialize'
 import { name, version } from '../package.json'
@@ -34,6 +34,18 @@ export default defineNuxtModule({
             handleDevWsProxy(moduleConfig, nuxt)
         }
 
+        addServerHandler({
+            handler: resolver.resolve(runtimeDir, 'proxy-handler.nitro'),
+            middleware: true
+        })
+
+        if (moduleConfig.experimental?.listener && !nuxt.options.dev) {
+            addServerHandler({
+                handler: resolver.resolve(runtimeDir, 'socket-handler.nitro'),
+                middleware: true
+            })
+        }
+
         nuxt.hook('nitro:config', (config) => {
             config.externals = config.externals || {}
             config.externals.inline = config.externals.inline || []
@@ -42,7 +54,6 @@ export default defineNuxtModule({
             config.virtual = config.virtual || {}
             config.virtual['#nuxt-proxy-options'] = `export const options = ${serialize(moduleConfig, { space: 4 })}`
             config.plugins = config.plugins || []
-            config.plugins.push(resolver.resolve(runtimeDir, 'proxy-plugin.nitro'))
 
             if (moduleConfig.experimental?.listener && !nuxt.options.dev) {
                 config.plugins.push(resolver.resolve(runtimeDir, 'socket-plugin.nitro'))
